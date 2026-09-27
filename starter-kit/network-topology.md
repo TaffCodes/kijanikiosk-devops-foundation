@@ -6,31 +6,12 @@
 
 ## Architecture Diagram (ASCII)
 
-[ Internet ]
-      │
-      ▼
- ┌────────────────────────────────────────────────────────┐
- │ Virtual Private Cloud (VPC)                            │
- │                                                        │
- │  ┌──────────────────────────────────────────────────┐  │
- │  │ Public Subnet (Route to IGW)                     │  │
- │  │                                                  │  │
- │  │  [ Internet Gateway (IGW) ]                      │  │
- │  │             │                                    │  │
- │  │  [ Application Load Balancer ]   [ NAT Gateway ] │  │
- │  └─────────────┼──────────────────────────▲─────────┘  │
- │                │                          │            │
- │  ┌─────────────┼──────────────────────────┼─────────┐  │
- │  │ Private Subnet (No route to IGW)       │         │  │
- │  │             ▼                          │         │  │
- │  │     [ Web App Instance ] ──────────────┘         │  │
- │  │             │ (Outbound updates only)            │  │
- │  │             ▼                                    │  │
- │  │     [ Managed Database ]                         │  │
- │  └──────────────────────────────────────────────────┘  │
- └────────────────────────────────────────────────────────┘
+<img width="452" height="412" alt="image" src="https://github.com/user-attachments/assets/e7bae361-321c-44af-bc90-d6daca36af2d" />
 
-## Mermaid JS Format (For PNG Generation)
+
+
+
+
 ```mermaid
 graph TD
     Internet((Internet)) --> IGW[Internet Gateway]
