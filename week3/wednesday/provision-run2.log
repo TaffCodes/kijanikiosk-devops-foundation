@@ -1,0 +1,27 @@
+[2026-10-11T23:36:03] INFO: Starting KijaniKiosk provisioning...
+[2026-10-11T23:36:03] INFO: === Phase 1: Package Installation ===
+Reading package lists...
+Building dependency tree...
+Reading state information...
+acl is already the newest version (2.3.1-1).
+curl is already the newest version (7.81.0-1ubuntu1.29).
+gnupg is already the newest version (2.2.27-3ubuntu2.5).
+ufw is already the newest version (0.36.1-4ubuntu0.1).
+0 upgraded, 0 newly installed, 0 to remove and 19 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+nginx is already the newest version (1.18.0-6ubuntu14.21).
+nodejs is already the newest version (20.20.2-1nodesource1).
+0 upgraded, 0 newly installed, 0 to remove and 19 not upgraded.
+[2026-10-11T23:36:24] OK: Installed and pinned Nginx (1.18.0-6ubuntu14.21) and Node.js (20.x)
+[2026-10-11T23:36:24] INFO: === Phase 2: Service Accounts ===
+[2026-10-11T23:36:24] OK: Service accounts and groups configured
+[2026-10-11T23:36:24] INFO: === Phase 3: Directory Structure ===
+[2026-10-11T23:36:24] OK: Directory ownership, permissions, and ACLs applied
+[2026-10-11T23:36:24] INFO: === Phase 4: systemd Unit Files ===
+[2026-10-11T23:36:25] OK: systemd unit configured and enabled
+[2026-10-11T23:36:25] INFO: === Phase 5: Firewall Configuration ===
+[2026-10-11T23:36:28] OK: ufw configured: ports 22 and 80 open
+[2026-10-11T23:36:28] INFO: === Phase 6: Post-Provisioning Verification ===
+[2026-10-11T23:36:28] OK: Provisioning complete. Server is in known state.
