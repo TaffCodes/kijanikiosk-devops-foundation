@@ -1,0 +1,29 @@
+# Final Contents of /etc/sudoers.d/amina
+
+# Grants ability to restart the three specific services without exposing stop/disable commands
+amina ALL=(root) NOPASSWD: /bin/systemctl restart kk-api
+amina ALL=(root) NOPASSWD: /bin/systemctl restart kk-payments
+amina ALL=(root) NOPASSWD: /bin/systemctl restart kk-logs
+
+# Grants read-only status checks for the specific services
+amina ALL=(root) NOPASSWD: /bin/systemctl status kk-api
+amina ALL=(root) NOPASSWD: /bin/systemctl status kk-payments
+amina ALL=(root) NOPASSWD: /bin/systemctl status kk-logs
+
+# Grants read-only access to the application logs
+amina ALL=(root) NOPASSWD: /bin/journalctl -u kk-api
+amina ALL=(root) NOPASSWD: /bin/journalctl -u kk-payments
+amina ALL=(root) NOPASSWD: /bin/journalctl -u kk-logs
+
+# Grants safe config editing capabilities. Sudoedit copies the file to a temp location,
+# opens it with the user's unprivileged editor, and writes it back using sudo,
+# completely eliminating the risk of a root shell escape via editor commands.
+amina ALL=(root) NOPASSWD: sudoedit /etc/nginx/nginx.conf
+
+---
+
+# Systemctl Abuse Scenarios (Why wildcards are dangerous)
+If the policy had been written as `amina ALL=(root) NOPASSWD: /bin/systemctl *`, the following attacks would be possible:
+
+1. **Malicious Service Execution:** An attacker could create a malicious systemd service file in their home directory (e.g., `reverse-shell.service`) that executes a script to grant root access. They could then use `sudo systemctl link /home/amina/reverse-shell.service` and `sudo systemctl start reverse-shell.service` to execute the payload as root.
+2. **Editor Shell Escape:** An attacker could run `sudo systemctl edit kk-api`. This command natively opens a text editor (like nano or vim) as the root user. If vim is the default editor, the attacker simply types `:!/bin/bash` inside vim to instantly drop into a full, unrestricted root shell, bypassing all intended restrictions.
