@@ -1,0 +1,37 @@
+[2026-10-12T01:02:16] INFO: === Phase 1: Package Installation ===
+Reading package lists...
+Building dependency tree...
+Reading state information...
+acl is already the newest version (2.3.1-1).
+curl is already the newest version (7.81.0-1ubuntu1.29).
+gnupg is already the newest version (2.2.27-3ubuntu2.5).
+ufw is already the newest version (0.36.1-4ubuntu0.1).
+0 upgraded, 0 newly installed, 0 to remove and 19 not upgraded.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+nginx is already the newest version (1.18.0-6ubuntu14.21).
+nodejs is already the newest version (20.20.2-1nodesource1).
+0 upgraded, 0 newly installed, 0 to remove and 19 not upgraded.
+[2026-10-12T01:02:29] OK: Packages installed and pinned
+[2026-10-12T01:02:29] INFO: === Phase 2: Service Accounts ===
+[2026-10-12T01:02:29] INFO: Already exists: kk-api
+[2026-10-12T01:02:29] INFO: Already exists: kk-payments
+[2026-10-12T01:02:29] INFO: Already exists: kk-logs
+[2026-10-12T01:02:29] OK: Service accounts validated
+[2026-10-12T01:02:29] INFO: === Phase 3: Directory Structure ===
+[2026-10-12T01:02:29] OK: Directory structure and ACLs established
+[2026-10-12T01:02:29] INFO: === Phase 4: systemd Unit Files ===
+[2026-10-12T01:02:30] OK: systemd units deployed and enabled
+[2026-10-12T01:02:30] INFO: === Phase 5: Firewall Configuration ===
+[2026-10-12T01:02:34] OK: Firewall reset and intent-based rules applied
+[2026-10-12T01:02:34] INFO: === Phase 6: Journal Persistence & Log Rotation ===
+[2026-10-12T01:02:34] OK: Logging persistence and daily
+    su kk-logs kk-logs rotation configured
+[2026-10-12T01:02:34] INFO: === Phase 7: Monitoring Health Checks ===
+[2026-10-12T01:02:34] OK: Health check JSON written to /opt/kijanikiosk/health/last-provision.json
+[2026-10-12T01:02:34] INFO: === Phase 8: Final Verification ===
+[2026-10-12T01:02:34] OK: PASS: SSH allowed
+[2026-10-12T01:02:34] OK: PASS: HTTP allowed
+[2026-10-12T01:02:34] OK: PASS: Port 3001 external deny present
+[2026-10-12T01:02:34] OK: All validation checks passed. Server is clean.

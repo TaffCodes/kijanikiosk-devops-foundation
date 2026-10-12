@@ -1,0 +1,20 @@
+=== 1. Logrotate Access Model Verification ===
+PASS: kk-api can write after logrotate
+
+=== 2. Health Check Validation ===
+FAIL: Health check missing
+
+=== 3. Firewall Intent Validation ===
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    Anywhere                   # SSH Access
+[ 2] 80/tcp                     ALLOW IN    Anywhere                   # HTTP Access
+[ 3] 3001                       ALLOW IN    127.0.0.1                  # Nginx proxy loopback
+[ 4] 3001                       ALLOW IN    10.0.1.0/24                # Monitoring health checks
+[ 5] 3001/tcp                   DENY IN     Anywhere                   # Block external direct port 3001 access
+[ 6] 22/tcp (v6)                ALLOW IN    Anywhere (v6)              # SSH Access
+[ 7] 80/tcp (v6)                ALLOW IN    Anywhere (v6)              # HTTP Access
+[ 8] 3001/tcp (v6)              DENY IN     Anywhere (v6)              # Block external direct port 3001 access
+
