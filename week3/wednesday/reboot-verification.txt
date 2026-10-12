@@ -1,0 +1,26 @@
+=== 1. Service Status (Should be enabled/inactive) ===
+● kk-api.service - KijaniKiosk API Service
+     Loaded: loaded (/etc/systemd/system/kk-api.service; enabled; vendor preset: enabled)
+     Active: activating (auto-restart) (Result: exit-code) since Sun 2026-10-11 23:38:45 UTC; 3s ago
+       Docs: https://github.com/kijanikiosk/api/blob/main/README.md
+    Process: 1112 ExecStart=/usr/bin/node /opt/kijanikiosk/api/server.js (code=exited, status=1/FAILURE)
+   Main PID: 1112 (code=exited, status=1/FAILURE)
+        CPU: 97ms
+
+=== 2. Package Holds (Should list nginx and nodejs) ===
+nginx
+nodejs
+
+=== 3. Firewall Status (Should be active with rules) ===
+Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW IN    Anywhere                  
+80/tcp                     ALLOW IN    Anywhere                  
+22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+80/tcp (v6)                ALLOW IN    Anywhere (v6)             
+
