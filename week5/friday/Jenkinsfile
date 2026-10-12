@@ -10,7 +10,6 @@ pipeline {
 
     environment {
         // Requirement 1: Explicit environment variables
-        // Using Docker's host gateway to reach the local Nexus instance
         NEXUS_URL = 'host.docker.internal:8081/repository/kijanikiosk-internal/'
         APP_NAME = 'kijanikiosk-payments'
         // Requirement 2: <semver>-<git-sha> version format
@@ -21,22 +20,25 @@ pipeline {
     stages {
         stage('Lint') {
             steps {
-                echo "Running Linter..."
-                // Assuming standard npm scripts exist
-                sh 'npm ci'
-                sh 'npm run lint || echo "Linting passed"'
+                dir('week5/friday') {
+                    echo "Running Linter..."
+                    // Using || true since we do not have a package-lock.json in our dummy app yet
+                    sh 'npm ci || true'
+                    sh 'npm run lint'
+                }
             }
         }
 
         stage('Build') {
             steps {
-                echo "Building application version ${APP_VERSION}..."
-                // Dynamically update package.json with our specific version string
-                sh "npm version ${APP_VERSION} --no-git-tag-version --allow-same-version"
-                sh 'npm run build || echo "Build passed"'
-                
+                dir('week5/friday') {
+                    echo "Building application version ${APP_VERSION}..."
+                    // Update package.json to the specific semver-sha string before archiving
+                    sh "npm version ${APP_VERSION} --no-git-tag-version --allow-same-version"
+                    sh 'npm run build'
+                }
                 // Challenge B: Stash build output AND package.json for Publish stage
-                stash name: 'build-artifact', includes: 'package.json, src/**, dist/**, node_modules/**'
+                stash name: 'build-artifact', includes: 'week5/friday/package.json, week5/friday/src/**, week5/friday/test/**'
             }
         }
 
@@ -45,14 +47,18 @@ pipeline {
             parallel {
                 stage('Test') {
                     steps {
-                        echo "Running Unit Tests..."
-                        sh 'npm test || echo "Tests passed"'
+                        dir('week5/friday') {
+                            echo "Running Unit Tests..."
+                            sh 'npm test'
+                        }
                     }
                 }
                 stage('Security Audit') {
                     steps {
-                        echo "Running npm audit..."
-                        sh 'npm audit --audit-level=high || echo "No high vulnerabilities found"'
+                        dir('week5/friday') {
+                            echo "Running npm audit..."
+                            sh 'npm audit --audit-level=high || true'
+                        }
                     }
                 }
             }
@@ -61,21 +67,23 @@ pipeline {
         stage('Archive') {
             steps {
                 echo "Archiving artifacts..."
-                archiveArtifacts artifacts: 'package.json, dist/**', fingerprint: true
+                archiveArtifacts artifacts: 'week5/friday/package.json, week5/friday/src/**', fingerprint: true
             }
         }
 
         stage('Publish') {
             steps {
                 unstash 'build-artifact'
-                // Requirement 1: Use withCredentials, create and delete .npmrc in one shell step
-                withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
-                    sh '''
-                        echo "//${NEXUS_URL}:_authToken=${NEXUS_PASS}" > .npmrc
-                        echo "Publishing to Nexus..."
-                        npm publish --registry=http://${NEXUS_URL}
-                        rm .npmrc
-                    '''
+                dir('week5/friday') {
+                    // Requirement 1: Use withCredentials, create and delete .npmrc in one shell step
+                    withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                        sh '''
+                            echo "//${NEXUS_URL}:_authToken=${NEXUS_PASS}" > .npmrc
+                            echo "Publishing to Nexus..."
+                            npm publish --registry=http://${NEXUS_URL}
+                            rm .npmrc
+                        '''
+                    }
                 }
             }
         }
