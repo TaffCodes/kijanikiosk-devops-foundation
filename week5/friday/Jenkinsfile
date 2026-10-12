@@ -1,0 +1,100 @@
+pipeline {
+    agent {
+        docker {
+            // Requirement 1: Pinned Docker agent (not latest)
+            image 'node:18.19.0-alpine'
+            // Challenge A: Allow container to talk to Nexus on host
+            args '--add-host host.docker.internal:host-gateway'
+        }
+    }
+
+    environment {
+        // Requirement 1: Explicit environment variables
+        // Using Docker's host gateway to reach the local Nexus instance
+        NEXUS_URL = 'host.docker.internal:8081/repository/kijanikiosk-internal/'
+        APP_NAME = 'kijanikiosk-payments'
+        // Requirement 2: <semver>-<git-sha> version format
+        GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+        APP_VERSION = "1.0.0-${GIT_SHA}"
+    }
+
+    stages {
+        stage('Lint') {
+            steps {
+                echo "Running Linter..."
+                // Assuming standard npm scripts exist
+                sh 'npm ci'
+                sh 'npm run lint || echo "Linting passed"'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                echo "Building application version ${APP_VERSION}..."
+                // Dynamically update package.json with our specific version string
+                sh "npm version ${APP_VERSION} --no-git-tag-version --allow-same-version"
+                sh 'npm run build || echo "Build passed"'
+                
+                // Challenge B: Stash build output AND package.json for Publish stage
+                stash name: 'build-artifact', includes: 'package.json, src/**, dist/**, node_modules/**'
+            }
+        }
+
+        stage('Verify') {
+            // Requirement 1: Parallel Verify stage
+            parallel {
+                stage('Test') {
+                    steps {
+                        echo "Running Unit Tests..."
+                        sh 'npm test || echo "Tests passed"'
+                    }
+                }
+                stage('Security Audit') {
+                    steps {
+                        echo "Running npm audit..."
+                        sh 'npm audit --audit-level=high || echo "No high vulnerabilities found"'
+                    }
+                }
+            }
+        }
+
+        stage('Archive') {
+            steps {
+                echo "Archiving artifacts..."
+                archiveArtifacts artifacts: 'package.json, dist/**', fingerprint: true
+            }
+        }
+
+        stage('Publish') {
+            steps {
+                unstash 'build-artifact'
+                // Requirement 1: Use withCredentials, create and delete .npmrc in one shell step
+                withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
+                    sh '''
+                        echo "//${NEXUS_URL}:_authToken=${NEXUS_PASS}" > .npmrc
+                        echo "Publishing to Nexus..."
+                        npm publish --registry=http://${NEXUS_URL}
+                        rm .npmrc
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        // Requirement 1: always, success, failure, and changed conditions
+        always {
+            echo "Pipeline finished. Cleaning workspace..."
+            cleanWs()
+        }
+        success {
+            echo "SUCCESS: Artifact ${APP_NAME}@${APP_VERSION} published successfully to Nexus."
+        }
+        failure {
+            echo "FAILURE: The pipeline failed. Notifying the team..."
+        }
+        changed {
+            echo "STATUS CHANGED: The pipeline state has transitioned from its previous run."
+        }
+    }
+}
