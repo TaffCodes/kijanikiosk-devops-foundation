@@ -1,0 +1,34 @@
+[Unit]
+Description=KijaniKiosk Payments Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kk-payments
+Group=kk-payments
+WorkingDirectory=/opt/kijanikiosk/payments
+ExecStart=/usr/bin/node /opt/kijanikiosk/payments/server.js
+Restart=on-failure
+RestartSec=5s
+EnvironmentFile=/opt/kijanikiosk/config/payments-api.env
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/kijanikiosk/shared/logs
+ProtectHome=true
+CapabilityBoundingSet=
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictRealtime=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+RestrictSUIDSGID=true
+PrivateDevices=true
+[Install]
+WantedBy=multi-user.target
