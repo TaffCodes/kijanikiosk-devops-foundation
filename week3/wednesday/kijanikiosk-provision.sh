@@ -69,6 +69,40 @@ provision_dirs() {
     success "Directory ownership, permissions, and ACLs applied"
 }
 
+provision_logging() {
+    log "=== Phase: Logging Configuration ==="
+    mkdir -p /var/log/journal
+    systemd-tmpfiles --create --prefix /var/log/journal
+    
+    mkdir -p /etc/systemd/journald.conf.d/
+    cat > /etc/systemd/journald.conf.d/kijanikiosk.conf << 'CONF'
+[Journal]
+Storage=persistent
+Compress=yes
+SystemMaxUse=500M
+SystemMaxFileSize=50M
+CONF
+    systemctl reload systemd-journald
+
+    cat > /etc/logrotate.d/kijanikiosk << 'LOGROTATE'
+/opt/kijanikiosk/shared/logs/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 640 kk-logs kijanikiosk
+    sharedscripts
+    postrotate
+        systemctl reload kk-logs.service 2>/dev/null || true
+    endscript
+}
+LOGROTATE
+    
+    success "Persistent journal and daily logrotate configured"
+}
+
 provision_services() {
     log "=== Phase 4: systemd Unit Files ==="
     cat << 'UNIT' > /etc/systemd/system/kk-api.service
@@ -109,7 +143,6 @@ CapabilityBoundingSet=
 MemoryDenyWriteExecute=true
 LockPersonality=true
 
-
 [Install]
 WantedBy=multi-user.target
 UNIT
@@ -126,6 +159,10 @@ provision_firewall() {
     ufw default allow outgoing >/dev/null
     ufw allow 22/tcp >/dev/null
     ufw allow 80/tcp >/dev/null
+    
+    # CRITICAL: Do NOT add a 'deny 3001' rule here. Port 3001 must remain open 
+    # to the internal network for load balancer health checks.
+    
     ufw --force enable >/dev/null
     success "ufw configured: ports 22 and 80 open"
 }
@@ -161,6 +198,7 @@ main() {
     provision_packages
     provision_users
     provision_dirs
+    provision_logging
     provision_services
     provision_firewall
     verify_state

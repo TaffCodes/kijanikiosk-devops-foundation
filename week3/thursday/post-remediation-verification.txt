@@ -1,0 +1,23 @@
+=== 1. Performance: I/O wait (wa) should be < 10% ===
+procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st
+ 0  0      0  74380   8724 704908    0    0   142   610   97   84  2  1 96  1  0
+ 0  0      0  74380   8724 704908    0    0     0     4  102   46  0  0 100  0  0
+ 0  0      0  74380   8724 704908    0    0     0     0   57   28  0  0 100  0  0
+
+=== 2. Disk: Log space recovered ===
+1.6G	/opt/kijanikiosk/shared/logs/
+
+=== 3. Network: Only one listener on 3001 ===
+Port clear
+
+=== 4. Firewall: No deny 3001 rule ===
+Status: active
+
+     To                         Action      From
+     --                         ------      ----
+[ 1] 22/tcp                     ALLOW IN    Anywhere                  
+[ 2] 80/tcp                     ALLOW IN    Anywhere                  
+[ 3] 22/tcp (v6)                ALLOW IN    Anywhere (v6)             
+[ 4] 80/tcp (v6)                ALLOW IN    Anywhere (v6)             
+
