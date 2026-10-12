@@ -24,7 +24,6 @@ error() { echo "[$(date +%FT%T)] ERROR: $*" >&2; exit 1; }
 provision_packages() {
     log "=== Phase 1: Package Installation ==="
     
-    # Challenge D: Check if packages are already pinned correctly before attempting install
     if dpkg -l | grep -q nginx && apt-mark showhold | grep -q nginx; then
         log "Packages already installed and held. Skipping re-installation."
     else
@@ -69,7 +68,6 @@ provision_dirs() {
     chown -R root:"${APP_GROUP}" "${APP_BASE}/config"
     chown -R kk-logs:kk-logs "${APP_BASE}/shared/logs"
     
-    # Challenge B: Health directory access
     chown -R root:"${APP_GROUP}" "${APP_BASE}/health"
     chmod 750 "${APP_BASE}/health"
     
@@ -85,7 +83,7 @@ provision_dirs() {
 provision_services() {
     log "=== Phase 4: systemd Unit Files ==="
     
-    # kk-logs.service
+    # kk-logs.service (Hardened < 3.5)
     cat << 'UNIT' > /etc/systemd/system/kk-logs.service
 [Unit]
 Description=KijaniKiosk Log Aggregator
@@ -101,11 +99,22 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 CapabilityBoundingSet=
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictRealtime=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+PrivateDevices=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 [Install]
 WantedBy=multi-user.target
 UNIT
 
-    # kk-api.service
+    # kk-api.service (Hardened < 3.5)
     cat << 'UNIT' > /etc/systemd/system/kk-api.service
 [Unit]
 Description=KijaniKiosk API Service
@@ -130,6 +139,17 @@ ProtectSystem=strict
 ReadWritePaths=/opt/kijanikiosk/shared/logs
 ProtectHome=true
 CapabilityBoundingSet=
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictRealtime=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+PrivateDevices=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 [Install]
 WantedBy=multi-user.target
 UNIT
@@ -165,6 +185,9 @@ ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallFilter=@system-service
+SystemCallArchitectures=native
+RestrictSUIDSGID=true
+PrivateDevices=true
 [Install]
 WantedBy=multi-user.target
 UNIT
@@ -223,8 +246,7 @@ CONF
 LOGROTATE
     
     logrotate --debug /etc/logrotate.d/kijanikiosk >/dev/null 2>&1 || error "Logrotate config invalid"
-    success "Logging persistence and daily
-    su kk-logs kk-logs rotation configured"
+    success "Logging persistence and daily rotation configured"
 }
 
 provision_health() {
@@ -244,25 +266,20 @@ verify_state() {
     log "=== Phase 8: Final Verification ==="
     local failed=0
 
-    # User validation
     for svc in kk-api kk-payments kk-logs; do
         id "$svc" >/dev/null 2>&1 || { log "FAIL: User $svc missing"; ((failed++)); }
     done
 
-    # Package validation
     apt-mark showhold | grep -q nginx || { log "FAIL: nginx not held"; ((failed++)); }
 
-    # Systemd validation
     systemctl is-enabled kk-payments.service >/dev/null 2>&1 || { log "FAIL: kk-payments not enabled"; ((failed++)); }
 
-    # Firewall programmatic validation
     local fw_status
     fw_status=$(sudo ufw status)
     echo "$fw_status" | grep -q "22/tcp.*ALLOW" && success "PASS: SSH allowed" || { log "FAIL: SSH missing"; ((failed++)); }
     echo "$fw_status" | grep -q "80/tcp.*ALLOW" && success "PASS: HTTP allowed" || { log "FAIL: HTTP missing"; ((failed++)); }
     echo "$fw_status" | grep -q "3001/tcp.*DENY" && success "PASS: Port 3001 external deny present" || { log "FAIL: 3001 deny missing"; ((failed++)); }
 
-    # Health check validation
     [[ -f /opt/kijanikiosk/health/last-provision.json ]] || { log "FAIL: Health check file missing"; ((failed++)); }
 
     if [[ $failed -eq 0 ]]; then
