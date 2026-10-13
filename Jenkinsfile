@@ -69,9 +69,16 @@ pipeline {
                 dir('week5/friday') {
                     withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
                         sh '''
-                            echo "//${NEXUS_URL}:_authToken=${NEXUS_PASS}" > .npmrc
+                            # Encode the username and password in Base64 for Basic Auth
+                            AUTH=$(echo -n "${NEXUS_USER}:${NEXUS_PASS}" | base64)
+                            echo "//${NEXUS_URL}:_auth=${AUTH}" > .npmrc
+                            echo "email=jenkins@kijanikiosk.com" >> .npmrc
+                            echo "always-auth=true" >> .npmrc
+                            
                             echo "Publishing to Nexus..."
                             npm publish --registry=http://${NEXUS_URL}
+                            
+                            # Clean up credentials
                             rm .npmrc
                         '''
                     }
