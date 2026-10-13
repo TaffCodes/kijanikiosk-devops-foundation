@@ -1,5 +1,20 @@
 # KijaniKiosk CI Pipeline: Board-Ready Delivery
 
+## Repository Contents
+The following files and directories are included in this project submission to fulfill all deliverables:
+* **`src/index.js`**: The main application source code.
+* **`test/test.js`**: The unit test file.
+* **`ci-pipeline-board-document.md`**: The plain-language pipeline explanation for the board presentation.
+* **`credential-audit.txt`**: The output of the security checks ensuring no leaked credentials.
+* **`fault-injection-log.md`**: The recorded downstream behaviors and design rationales for each faulted stage.
+* **`green-pipeline-run.txt`**: The full console output of a successful sub-10-minute Jenkins build.
+* **`Jenkinsfile`**: The Declarative Jenkins pipeline script.
+* **`nexus-versions-screenshot-both.png`**: Visual evidence of multiple versioned artifacts in the Nexus registry.
+* **`nexus-versions-screenshot.png`**: Visual evidence of the initial versioned artifact in the Nexus registry.
+* **`package.json`**: The Node.js project configuration containing the pipeline execution scripts.
+* **`README.md`**: This file, containing the repository overview, PR description, and engineering reflection.
+
+---
 ## Pull Request Description (For Tendo)
 This week, I built a production-grade CI pipeline using a Declarative Jenkinsfile that automatically lints, builds, verifies, and securely publishes a versioned Node.js artifact to a private Nexus registry. I am most confident in the fail-fast parallel verification stage, which strictly prevents vulnerable or failing code from wasting compute resources or entering the registry. As a next step, I would add an automated Continuous Deployment (CD) trigger to pull this verified artifact from Nexus and deploy it to a staging environment.
 
