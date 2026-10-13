@@ -14,9 +14,6 @@ The following files and directories are included in this project submission to f
 * **`package.json`**: The Node.js project configuration containing the pipeline execution scripts.
 * **`README.md`**: This file, containing the repository overview, PR description, and engineering reflection.
 
----
-## Pull Request Description (For Tendo)
-This week, I built a production-grade CI pipeline using a Declarative Jenkinsfile that automatically lints, builds, verifies, and securely publishes a versioned Node.js artifact to a private Nexus registry. I am most confident in the fail-fast parallel verification stage, which strictly prevents vulnerable or failing code from wasting compute resources or entering the registry. As a next step, I would add an automated Continuous Deployment (CD) trigger to pull this verified artifact from Nexus and deploy it to a staging environment.
 
 ---
 
