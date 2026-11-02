@@ -1,0 +1,32 @@
+=== Pre-Switch Clean Starting State Confirmation [16:14:38] ===
+kk-api-blue.service: active
+kk-api-green.service: active
+Blue Direct Health (127.0.0.1:3000): {"status":"healthy","environment":"blue","version":"v1.3.0"}
+Green Direct Health (127.0.0.1:3001): {"status":"healthy","environment":"green","version":"v1.4.0"}
+Proxy Health Before Switch (127.0.0.1:80):
+{
+    "status": "healthy",
+    "environment": "blue",
+    "version": "v1.3.0"
+}
+Pre-Switch .active-env: blue
+Pre-Switch .previous-env: green
+
+[16:14:39] Monitor started in separate terminal
+
+=== Executing Switch to Green ===
+[16:14:45] Starting traffic switch to green (port 3001)...
+[16:14:45] Pre-switch health check passed for kk-api-green.
+[16:14:45] Switch complete: active=green, previous=blue (exit 0)
+
+=== Post-Switch Verification [16:14:45] ===
+Proxy Health After Switch (http://127.0.0.1:80/health):
+{
+    "status": "healthy",
+    "environment": "blue",
+    "version": "v1.3.0"
+}
+Post-Switch .active-env: green
+Post-Switch .previous-env: blue
+Nginx Active Upstream Config (/etc/nginx/kijanikiosk-active-env.conf):
+set $active_upstream kk-api-green;

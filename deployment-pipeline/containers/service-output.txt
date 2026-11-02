@@ -1,0 +1,9 @@
+--- Endpoints ---
+NAME                  ENDPOINTS                     AGE
+kk-payments-service   10.244.0.4:3001,10.244.0.5:3001   18s
+
+--- Health Check ---
+{"status":"ok","version":"v1.0.0"}
+
+--- In-Cluster DNS Check ---
+{"status":"ok","version":"v1.0.0"}
