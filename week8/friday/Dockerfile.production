@@ -1,0 +1,36 @@
+# STAGE 1: Builder
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# STAGE 2: Production
+FROM node:18-alpine
+WORKDIR /app
+
+# Create the non-root 'kijani' user and group
+RUN addgroup -S kijani && adduser -S kijani -G kijani
+
+ENV NODE_ENV=production
+
+# Install only production dependencies to exclude the TypeScript compiler (tsc)
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy the compiled output from the builder stage
+COPY --from=builder --chown=kijani:kijani /app/dist ./dist
+
+# Enforce file ownership
+RUN chown -R kijani:kijani /app
+
+USER kijani
+EXPOSE 3001
+
+# Healthcheck to verify the application is responsive
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+  CMD wget -qO- http://localhost:3001/health || exit 1
+
+# Exec-form CMD to start the application
+CMD ["node", "dist/index.js"]
