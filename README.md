@@ -1,32 +1,108 @@
-# KijaniKiosk Full IaC Pipeline (Week 4 Capstone)
+# KijaniKiosk End-to-End Production Delivery Platform (Track A: Infrastructure-First)
 
-This repository contains the automated Infrastructure as Code (IaC) pipeline for the KijaniKiosk staging environment. It bridges infrastructure provisioning and server configuration into a single, idempotent workflow.
+An end-to-end, multi-environment DevOps delivery platform for the `kk-payments` microservice, integrating Terraform namespace provisioning, Ansible configuration management, Kubernetes multi-environment ConfigMap isolation, Jenkins CI/CD with automated smoke tests and approval gates, the Week 10 serverless receipt chain, and Prometheus alerting.
 
-## Architecture Overview
+## 1. Architecture Overview
 
-1. **Infrastructure Provisioning (Terraform)**
-   - Utilizes a reusable `app_server` module with a `for_each` loop to dynamically provision the API, Payments, and Logs servers on AWS (t3.micro).
-   - Manages state collaboratively using a remote AWS S3 backend (`kijanikiosk-tfstate-matawi-2026`) with state locking capabilities.
-   - Deploys strict AWS Security Groups allowing only inbound HTTP (80) and SSH (22) traffic.
+The platform is organized into four decoupled layers (`docs/scope.md` & `docs/architecture.png`):
+1. **Infrastructure Layer (`terraform/` & `ansible/`):** Terraform provisions the isolated `kijani-staging` namespace and resource quotas; Ansible configures S3 bucket storage (`/var/lib/kijanikiosk/s3/kk-payments-receipts-staging`), registry secrets, and environment-specific ConfigMaps.
+2. **Runtime Layer (`k8s/`):** Runs `kk-payments` across `kijani-staging` and `default` (production) using the **exact same `k8s/kk-payments-deployment.yaml` manifest** while injecting environment-specific `DB_HOST` and `RECEIPT_BUCKET` values from `kk-payments-config`.
+3. **Delivery Layer (`Jenkinsfile` & `scripts/smoke-test.sh`):** Automatically deploys to `kijani-staging` on merge to `main`, executes `scripts/smoke-test.sh`, and enforces a human approval gate (recording an audit reason) before promoting to `default`.
+4. **Intelligence & Event Layer (`serverless/` & `prometheus/`):** Staging payments write JSON receipts to `kk-payments-receipts-staging`, triggering the 3-stage Week 10 receipt chain (`kk-receipt-generator` -> `kk-fraud-validator` -> `kk-notifier`), while Prometheus evaluates alert rules in `prometheus/alert-rules.yml`.
 
-2. **Dynamic Integration**
-   - The infrastructure outputs are programmatically extracted by `pipeline.sh` and injected into an Ansible `inventory.ini` file, ensuring no hardcoded IPs exist in the configuration layer.
+## 2. Repository Directory Structure
 
-3. **Server Configuration (Ansible)**
-   - Configures the raw Ubuntu servers to production standards using fully idempotent tasks.
-   - Deploys hardened systemd unit files using Jinja2 templates (`ProtectSystem=strict`, `RestrictSUIDSGID=true`, `PrivateDevices=true`), achieving an exposure score below 2.5 for the payment service.
-   - Enforces the principle of least privilege through dedicated service accounts, strict UFW firewall rules, and granular ACLs.
+```text
+.
+├── Dockerfile.production          # Multi-stage sub-100MB production container build (runs as kijani)
+├── Jenkinsfile                    # End-to-end CI/CD pipeline with smoke test & approval gate
+├── package.json                   # Node.js service dependencies and build scripts
+├── src/
+│   └── index.js                   # kk-payments microservice with /health, /pay, /metrics, /simulate-fault
+├── terraform/
+│   ├── main.tf                    # Provisions kijani-staging namespace & ResourceQuota
+│   ├── variables.tf               # Configurable kubeconfig and namespace parameters
+│   └── outputs.tf                 # Outputs provisioned namespace name
+├── ansible/
+│   ├── inventory.ini              # Local control node inventory
+│   └── site.yml                   # Configures S3 buckets, registry secrets, and ConfigMaps
+├── k8s/
+│   ├── configmap-staging.yaml     # Staging ConfigMap (postgres-staging DB_HOST & staging bucket)
+│   ├── configmap-prod.yaml        # Production ConfigMap (postgres-prod DB_HOST & prod bucket)
+│   ├── kk-payments-deployment.yaml# Shared multi-environment Deployment with probes & limits
+│   └── kk-payments-service.yaml   # ClusterIP Service exposing port 3001
+├── serverless/
+│   ├── serverless.yml             # Week 10 Serverless Framework definition
+│   ├── handler.js                 # Receipt generator, fraud validator, and customer notifier
+│   └── run-receipt-chain.js       # Local event runner triggered on S3 receipt creation
+├── prometheus/
+│   ├── prometheus.yml             # Scrape configurations for staging and production
+│   └── alert-rules.yml            # Alert rules for error rate, latency, and pod restarts
+├── scripts/
+│   └── smoke-test.sh              # Automated smoke test verifying health, DB_HOST, and receipt chain
+└── docs/
+    ├── scope.md                   # 1-page Scope Document & labeled Mermaid architecture diagram
+    ├── architecture.png           # Rendered architecture diagram image
+    ├── ai-governance-log.md       # Week 10 eight-field AI governance audit log
+    ├── test-plan.md               # Pre-session verification test plan
+    ├── peer-feedback-log.md       # Peer review log with severity, resolution & issue links
+    └── reflection.md              # 1-page engineering reflection
+```
 
-## Prerequisites
+## 3. Prerequisites
 
-- **Terraform:** v1.6.0+
-- **Ansible:** core 2.16+
-- **AWS CLI:** Authenticated with sufficient privileges to provision EC2 instances and manage S3 buckets.
-- **SSH Key:** An AWS key pair named `kijanikiosk-key` secured at `~/.ssh/kijanikiosk-key.pem` with `400` permissions.
+* Docker `>= 24.0` and local registry running on `localhost:5000`
+* Minikube `>= 1.32` and `kubectl` configured (`kubectl get nodes` Ready)
+* Terraform `>= 1.3` and Ansible `>= 2.14`
+* Node.js `>= 18.x` and Jenkins `>= 2.400`
 
-## Execution
-
-To deploy or reconcile the environment, run the master pipeline script from the `week4/friday/` directory:
+## 4. End-to-End Setup & Reproduction Steps (Clean Checkout)
 
 ```bash
-./pipeline.sh
+# 1. Provision kijani-staging namespace with Terraform
+(cd terraform && terraform init && terraform apply -auto-approve)
+
+# 2. Configure S3 receipt buckets, registry secrets, and ConfigMaps with Ansible
+(cd ansible && ansible-playbook -i inventory.ini site.yml)
+
+# 3. Build and push the production container image
+docker build --no-cache -t localhost:5000/kk-payments:1.0.0 -f Dockerfile.production .
+docker push localhost:5000/kk-payments:1.0.0
+
+# 4. Deploy identical manifest to kijani-staging and default namespaces
+kubectl apply -f k8s/kk-payments-deployment.yaml -n kijani-staging
+kubectl apply -f k8s/kk-payments-service.yaml -n kijani-staging
+kubectl apply -f k8s/kk-payments-deployment.yaml -n default
+kubectl apply -f k8s/kk-payments-service.yaml -n default
+```
+
+## 5. Running Verification & Smoke Tests
+
+```bash
+# Run staging smoke test (verifies staging DB_HOST + serverless receipt chain)
+./scripts/smoke-test.sh kijani-staging staging 13001
+
+# Run production smoke test (verifies production DB_HOST + production receipt chain)
+./scripts/smoke-test.sh default production 13002
+```
+
+## 6. Fault Simulation & Alert Verification
+
+To demonstrate fault handling and Prometheus alert evaluation during a live presentation:
+
+```bash
+kubectl port-forward svc/kk-payments-service -n kijani-staging 13001:3001 &
+curl -X POST http://127.0.0.1:13001/simulate-fault -H "Content-Type: application/json" -d '{"enable": true}'
+curl -i http://127.0.0.1:13001/health
+curl -s http://127.0.0.1:13001/metrics | grep kk_payments_errors_total
+# Restore normal service:
+curl -X POST http://127.0.0.1:13001/simulate-fault -H "Content-Type: application/json" -d '{"enable": false}'
+```
+
+## 7. AI Governance, Testing & Known Production Gaps
+
+* **AI Governance:** See [`docs/ai-governance-log.md`](docs/ai-governance-log.md) for full critiques and remediations of AI-generated manifests and pipeline stages.
+* **Testing & Peer Feedback:** See [`docs/test-plan.md`](docs/test-plan.md) and [`docs/peer-feedback-log.md`](docs/peer-feedback-log.md).
+* **Known Production Gaps & Remediations:**
+  1. *Secret Management:* Database connection strings and registry tokens currently rely on standard Kubernetes Secrets and ConfigMaps; production remediation is integrating **External Secrets Operator** backed by HashiCorp Vault.
+  2. *Storage Backend:* Receipt storage uses a host-mounted S3 directory on single-node Minikube; production remediation is migrating to **AWS S3 with IAM Roles for Service Accounts (IRSA)**.
