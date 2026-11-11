@@ -20,7 +20,6 @@
         - "{{ prod_bucket }}"
         - "{{ staging_bucket }}-processed"
         - "{{ prod_bucket }}-processed"
-      become: true
 
     - name: Verify kijani-staging namespace exists
       ansible.builtin.command: kubectl get namespace {{ staging_namespace }}

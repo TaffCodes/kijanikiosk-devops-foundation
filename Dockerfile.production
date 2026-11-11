@@ -10,7 +10,7 @@ RUN npm run build
 FROM node:18-alpine
 WORKDIR /app
 
-RUN addgroup -g 1000 -S kijani && adduser -u 1000 -S kijani -G kijani
+RUN addgroup -g 1001 -S kijani && adduser -u 1001 -S kijani -G kijani
 ENV NODE_ENV=production
 
 COPY package*.json ./

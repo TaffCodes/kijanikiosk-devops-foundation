@@ -22,7 +22,7 @@ spec:
         - name: kijani-registry-credentials
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
+        runAsUser: 1001
       containers:
         - name: kk-payments
           image: localhost:5000/kk-payments:1.0.0
