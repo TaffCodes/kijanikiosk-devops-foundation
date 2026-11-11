@@ -34,16 +34,16 @@ PAY_JSON=$(curl -sf -X POST "http://127.0.0.1:${LOCAL_PORT}/pay" \
 echo "   Payment Response: ${PAY_JSON}"
 
 RECEIPT_ID=$(echo "${PAY_JSON}" | sed -E 's/.*"receiptId":"([^"]+)".*/\1/')
+BUCKET_NAME=$(echo "${PAY_JSON}" | sed -E 's/.*"bucket":"([^"]+)".*/\1/')
 sleep 2
 
-BUCKET_NAME="kk-payments-receipts-${EXPECTED_ENV}"
 RAW_RECEIPT="/var/lib/kijanikiosk/s3/${BUCKET_NAME}/${RECEIPT_ID}.json"
 PROCESSED_RECEIPT="/var/lib/kijanikiosk/s3/${BUCKET_NAME}-processed/${RECEIPT_ID}-notified.json"
 
 if [[ -f "${RAW_RECEIPT}" && -f "${PROCESSED_RECEIPT}" ]]; then
   echo "   [PASS] Serverless receipt chain verified: ${PROCESSED_RECEIPT}"
 else
-  echo "   [FAIL] Receipt chain output missing!"
+  echo "   [FAIL] Receipt chain output missing at ${PROCESSED_RECEIPT}!"
   exit 1
 fi
 
