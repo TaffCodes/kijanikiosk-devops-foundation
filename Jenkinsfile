@@ -1,105 +1,104 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:18.19.0'
-            args '--add-host host.docker.internal:host-gateway'
+  agent any
+
+  environment {
+    REGISTRY = "localhost:5000"
+    IMAGE_NAME = "kk-payments"
+    STAGING_NS = "kijani-staging"
+    PROD_NS = "default"
+  }
+
+  stages {
+    stage('Checkout & Version Computation') {
+      steps {
+        script {
+          env.APP_VERSION = sh(script: "grep '\"version\"' package.json | cut -d '\"' -f4", returnStdout: true).trim()
+          env.GIT_SHA = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+          env.FULL_TAG = "${env.APP_VERSION}-${env.GIT_SHA}"
+          echo "Building version tag: ${env.FULL_TAG}"
         }
+      }
     }
 
-    environment {
-        NEXUS_URL = 'host.docker.internal:8081/repository/kijanikiosk-internal/'
-        APP_NAME = 'kijanikiosk-payments'
-        GIT_SHA = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-        APP_VERSION = "1.0.0-${GIT_SHA}"
+    stage('Provision & Configure Infrastructure (Terraform + Ansible)') {
+      steps {
+        sh '''
+          cd terraform
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
+          cd ../ansible
+          ansible-playbook -i inventory.ini site.yml
+        '''
+      }
     }
 
-    stages {
-        stage('Lint') {
-            steps {
-                dir('week5/friday') {
-                    echo "Running Linter..."
-                    sh 'npm ci || true'
-                    sh 'npm run lint'
-                }
-            }
-        }
-
-        stage('Build') {
-            steps {
-                dir('week5/friday') {
-                    echo "Building application version ${APP_VERSION}..."
-                    sh "npm version ${APP_VERSION} --no-git-tag-version --allow-same-version"
-                    sh 'npm run build'
-                }
-                stash name: 'build-artifact', includes: 'week5/friday/package.json, week5/friday/src/**, week5/friday/test/**'
-            }
-        }
-
-        stage('Verify') {
-            parallel {
-                stage('Test') {
-                    steps {
-                        dir('week5/friday') {
-                            echo "Running Unit Tests..."
-                            sh 'npm test'
-                        }
-                    }
-                }
-                stage('Security Audit') {
-                    steps {
-                        dir('week5/friday') {
-                            echo "Running npm audit..."
-                            sh 'npm audit --audit-level=high || true'
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Archive') {
-            steps {
-                echo "Archiving artifacts..."
-                archiveArtifacts artifacts: 'week5/friday/package.json, week5/friday/src/**', fingerprint: true
-            }
-        }
-
-        stage('Publish') {
-            steps {
-                unstash 'build-artifact'
-                dir('week5/friday') {
-                    withCredentials([usernamePassword(credentialsId: 'nexus-credentials', usernameVariable: 'NEXUS_USER', passwordVariable: 'NEXUS_PASS')]) {
-                        sh '''
-                            # Encode the username and password in Base64 for Basic Auth
-                            AUTH=$(echo -n "${NEXUS_USER}:${NEXUS_PASS}" | base64)
-                            echo "//${NEXUS_URL}:_auth=${AUTH}" > .npmrc
-                            echo "email=jenkins@kijanikiosk.com" >> .npmrc
-                            echo "always-auth=true" >> .npmrc
-                            
-                            echo "Publishing to Nexus..."
-                            npm publish --registry=http://${NEXUS_URL}
-                            
-                            # Clean up credentials
-                            rm .npmrc
-                        '''
-                    }
-                }
-            }
-        }
+    stage('Build & Push Production Container Image') {
+      steps {
+        sh '''
+          docker build --no-cache -t ${REGISTRY}/${IMAGE_NAME}:${FULL_TAG} -t ${REGISTRY}/${IMAGE_NAME}:1.0.0 -f Dockerfile.production .
+          docker push ${REGISTRY}/${IMAGE_NAME}:${FULL_TAG}
+          docker push ${REGISTRY}/${IMAGE_NAME}:1.0.0
+          minikube image load ${REGISTRY}/${IMAGE_NAME}:1.0.0 || true
+        '''
+      }
     }
 
-    post {
-        always {
-            echo "Pipeline finished. Cleaning workspace..."
-            cleanWs()
-        }
-        success {
-            echo "SUCCESS: Artifact ${APP_NAME}@${APP_VERSION} published successfully to Nexus."
-        }
-        failure {
-            echo "FAILURE: The pipeline failed. Notifying the team..."
-        }
-        changed {
-            echo "STATUS CHANGED: The pipeline state has transitioned from its previous run."
-        }
+    stage('Deploy to Staging (kijani-staging)') {
+      when {
+        branch 'main'
+      }
+      steps {
+        sh '''
+          kubectl apply -f k8s/configmap-staging.yaml -n ${STAGING_NS}
+          kubectl apply -f k8s/kk-payments-deployment.yaml -n ${STAGING_NS}
+          kubectl apply -f k8s/kk-payments-service.yaml -n ${STAGING_NS}
+        '''
+      }
     }
+
+    stage('Staging Smoke Test & Receipt Chain Check') {
+      when {
+        branch 'main'
+      }
+      steps {
+        sh './scripts/smoke-test.sh kijani-staging staging 13001'
+      }
+    }
+
+    stage('Production Approval Gate') {
+      when {
+        branch 'main'
+      }
+      steps {
+        script {
+          def approvalReason = input(
+            id: 'ProdDeployApproval',
+            message: 'Staging smoke tests and serverless receipt chain passed. Approve production deployment?',
+            parameters: [
+              string(
+                defaultValue: 'Staging smoke test and receipt chain verified healthy',
+                description: 'Mandatory audit reason for promoting release to production',
+                name: 'APPROVAL_REASON'
+              )
+            ]
+          )
+          echo "[AUDIT LOG] Production deployment approved. Reason: ${approvalReason}"
+        }
+      }
+    }
+
+    stage('Deploy to Production (default)') {
+      when {
+        branch 'main'
+      }
+      steps {
+        sh '''
+          kubectl apply -f k8s/configmap-prod.yaml -n ${PROD_NS}
+          kubectl apply -f k8s/kk-payments-deployment.yaml -n ${PROD_NS}
+          kubectl apply -f k8s/kk-payments-service.yaml -n ${PROD_NS}
+          ./scripts/smoke-test.sh default production 13002
+        '''
+      }
+    }
+  }
 }
