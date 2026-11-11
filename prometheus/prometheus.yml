@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - "alert-rules.yml"
+
+scrape_configs:
+  - job_name: "kk-payments-staging"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["kk-payments-service.kijani-staging.svc.cluster.local:3001"]
+        labels:
+          environment: "staging"
+
+  - job_name: "kk-payments-production"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["kk-payments-service.default.svc.cluster.local:3001"]
+        labels:
+          environment: "production"

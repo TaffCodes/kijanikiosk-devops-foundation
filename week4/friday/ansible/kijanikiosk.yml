@@ -1,0 +1,135 @@
+---
+- name: KijaniKiosk Production Provisioning
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache and install packages
+      apt:
+        name:
+          - curl
+          - gnupg
+          - acl
+          - ufw
+          - nginx
+          - nodejs
+        state: present
+        update_cache: yes
+
+    - name: Ensure kijanikiosk group exists
+      group:
+        name: kijanikiosk
+        system: yes
+
+    - name: Ensure service accounts exist
+      user:
+        name: "{{ item }}"
+        system: yes
+        create_home: no
+        shell: /usr/sbin/nologin
+        groups: kijanikiosk
+        append: yes
+      loop:
+        - kk-api
+        - kk-payments
+        - kk-logs
+
+    - name: Create app directories
+      file:
+        path: "/opt/kijanikiosk/{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: 'api', owner: 'kk-api', group: 'kk-api', mode: '0750' }
+        - { path: 'payments', owner: 'kk-payments', group: 'kk-payments', mode: '0750' }
+        - { path: 'logs', owner: 'kk-logs', group: 'kk-logs', mode: '0750' }
+        - { path: 'config', owner: 'root', group: 'kijanikiosk', mode: '0750' }
+        - { path: 'shared/logs', owner: 'kk-logs', group: 'kk-logs', mode: '2770' }
+        - { path: 'health', owner: 'root', group: 'kijanikiosk', mode: '0750' }
+
+    - name: Set ACLs on shared logs
+      acl:
+        path: /opt/kijanikiosk/shared/logs
+        entity: "{{ item.entity }}"
+        etype: user
+        permissions: "{{ item.perms }}"
+        state: present
+        default: "{{ item.default }}"
+      loop:
+        - { entity: 'kk-api', perms: 'rwx', default: no }
+        - { entity: 'kk-payments', perms: 'r-x', default: no }
+        - { entity: 'kk-api', perms: 'rwx', default: yes }
+        - { entity: 'kk-payments', perms: 'r-x', default: yes }
+
+    - name: Create dummy env files
+      copy:
+        dest: "/opt/kijanikiosk/config/{{ item }}"
+        content: "NODE_ENV=production\n"
+        owner: root
+        group: kijanikiosk
+        mode: '0640'
+      loop:
+        - db.env
+        - payments-api.env
+
+    - name: Deploy systemd unit files
+      template:
+        src: "{{ service_name }}.service.j2"
+        dest: "/etc/systemd/system/{{ service_name }}.service"
+      notify: reload systemd
+
+    - name: Deploy logrotate config
+      template:
+        src: logrotate.j2
+        dest: /etc/logrotate.d/kijanikiosk
+
+    - name: Ensure journald.conf.d directory exists
+      file:
+        path: /etc/systemd/journald.conf.d
+        state: directory
+        mode: "0755"
+
+    - name: Configure journald persistence
+      copy:
+        dest: /etc/systemd/journald.conf.d/kijanikiosk.conf
+        content: |
+          [Journal]
+          Storage=persistent
+          Compress=yes
+          SystemMaxUse=500M
+          SystemMaxFileSize=50M
+      notify: restart journald
+
+    - name: Reset UFW
+      ufw:
+        state: reset
+
+    - name: Enable UFW with default deny
+      ufw:
+        state: enabled
+        default: deny
+        direction: incoming
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+        
+    - name: Allow HTTP
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+        name: "{{ service_name }}"
+        enabled: yes
+    - name: restart journald
+      systemd:
+        name: systemd-journald
+        state: restarted

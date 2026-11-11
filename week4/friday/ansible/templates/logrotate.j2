@@ -1,0 +1,14 @@
+/opt/kijanikiosk/shared/logs/*.log {
+    daily
+    su kk-logs kijanikiosk
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 640 kk-logs kijanikiosk
+    sharedscripts
+    postrotate
+        systemctl reload kk-logs.service 2>/dev/null || true
+    endscript
+}

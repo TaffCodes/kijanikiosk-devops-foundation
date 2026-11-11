@@ -1,0 +1,26 @@
+[Unit]
+Description=KijaniKiosk Logs Service
+[Service]
+Type=simple
+User=kk-logs
+Group=kk-logs
+ExecStart=/usr/bin/node /opt/kijanikiosk/logs/server.js
+ExecReload=/bin/kill -HUP $MAINPID
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+CapabilityBoundingSet=
+MemoryDenyWriteExecute=true
+LockPersonality=true
+RestrictNamespaces=true
+RestrictRealtime=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+PrivateDevices=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+[Install]
+WantedBy=multi-user.target

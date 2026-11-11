@@ -1,0 +1,26 @@
+service: kijanikiosk-receipt-chain
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'staging'}
+  region: af-south-1
+  environment:
+    RECEIPT_BUCKET: kk-payments-receipts-${self:provider.stage}
+    PROCESSED_BUCKET: kk-payments-receipts-${self:provider.stage}-processed
+
+functions:
+  receiptGenerator:
+    handler: handler.receiptGenerator
+    events:
+      - s3:
+          bucket: kk-payments-receipts-${self:provider.stage}
+          event: s3:ObjectCreated:*
+          existing: true
+
+  fraudValidator:
+    handler: handler.fraudValidator
+
+  customerNotifier:
+    handler: handler.customerNotifier

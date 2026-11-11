@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.vagrant/
+Vagrantfile
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+*.log

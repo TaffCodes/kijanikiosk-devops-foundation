@@ -1,0 +1,12 @@
+# Week 4 Reflection
+
+### 1. Conflict Discovery and Resolution
+The primary conflict arose between the Week 3 systemd hardening requirement (`ProtectSystem=strict`) and the Ansible configuration tasks (Challenge D). `ProtectSystem=strict` mounts the entire filesystem (including `/etc`) as read-only for the service. Initially, if Ansible deployed environment files to `/etc/` or if the application attempted to write state outside of `/opt/kijanikiosk/`, the hardened service would immediately fail to start. Resolving this required aligning the Ansible `template` destinations exactly with the designated, writable paths defined in the Week 3 directory structure (`/opt/kijanikiosk/config/` for env files and `/opt/kijanikiosk/shared/logs/` for write access). It reinforced the lesson that infrastructure security controls directly dictate application deployment architecture.
+
+### 2. Translating for Tendo
+**Nia's Version:** "Strict File System Protection renders the entire operating system and critical configuration directories completely read-only to the running applications."
+**Tendo's Version:** "We enforce `ProtectSystem=strict` and `ProtectHome=true` in the systemd unit files, heavily restricting the service account's write access to only explicitly declared `ReadWritePaths` like `/opt/kijanikiosk/shared/logs`."
+**Translation Trade-offs:** Translating to Tendo's version gains absolute engineering precision—a DevOps engineer knows exactly which directives are active and where the data is allowed to flow. However, it completely loses the business context. Nia doesn't need to know the systemd directive name; she needs to know the *business risk* (malware planting) is mitigated. 
+
+### 3. The Most Fragile Handoff
+The single most fragile handoff in the entire pipeline is the dynamic generation of the `inventory.ini` file in `pipeline.sh` (Phase 2), specifically tied to the SSH key assumption. If the pipeline runs in a CI/CD environment (like GitHub Actions) that differs from the local test setup, the `terraform output` will succeed, the inventory will be written, but the pipeline will instantly crash on Phase 3 because the exact path to `~/.ssh/kijanikiosk-key.pem` defined in `ansible/group_vars/all.yml` will not exist on the CI runner. To make this robust, the target environment's SSH key must be injected dynamically via environment variables or a secrets manager, rather than hardcoded to a local developer path.

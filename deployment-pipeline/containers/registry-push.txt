@@ -1,0 +1,24 @@
+1.0.0-fc7854a: Pulling from kk-payments
+44136fa355b3: Already exists
+e751fdd228d3: Pulling fs layer
+d3ed5bc3e1c9: Pulling fs layer
+62a5d8ce4238: Pulling fs layer
+a7161f72b750: Pulling fs layer
+e3d4803df1a9: Pulling fs layer
+358d2a281d11: Pulling fs layer
+cea5f15dd8ce: Download complete
+e751fdd228d3: Already exists
+d3ed5bc3e1c9: Already exists
+62a5d8ce4238: Already exists
+a7161f72b750: Already exists
+e3d4803df1a9: Already exists
+358d2a281d11: Already exists
+d3ed5bc3e1c9: Pull complete
+62a5d8ce4238: Pull complete
+a7161f72b750: Pull complete
+e3d4803df1a9: Pull complete
+358d2a281d11: Pull complete
+e751fdd228d3: Pull complete
+Digest: sha256:0fa614fae733bac9e9c2e3a96b0f8facee41d23979ef2bb2a15a2079307fc296
+Status: Downloaded newer image for localhost:5000/kk-payments:1.0.0-fc7854a
+localhost:5000/kk-payments:1.0.0-fc7854a

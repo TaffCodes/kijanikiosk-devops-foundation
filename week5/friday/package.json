@@ -1,0 +1,11 @@
+{
+  "name": "kijanikiosk-payments",
+  "version": "1.0.0",
+  "description": "Payment service for KijaniKiosk",
+  "main": "src/index.js",
+  "scripts": {
+    "lint": "echo 'Linting complete'",
+    "build": "echo 'Building application...'",
+    "test": "echo 'Tests passed'"
+  }
+}

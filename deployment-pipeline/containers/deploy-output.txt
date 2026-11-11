@@ -1,0 +1,8 @@
+--- Pods ---
+NAME                           READY   STATUS    RESTARTS   AGE
+kk-payments-59546fff6f-dlj2w   1/1     Running   0          33m
+kk-payments-59546fff6f-ftsnw   1/1     Running   0          33m
+
+--- Deployment ---
+NAME          READY   UP-TO-DATE   AVAILABLE   AGE
+kk-payments   2/2     2            2           33m
