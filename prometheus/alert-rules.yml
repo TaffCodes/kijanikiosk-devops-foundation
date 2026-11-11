@@ -1,0 +1,33 @@
+groups:
+  - name: kk-payments-health-alerts
+    interval: 5s
+    rules:
+      - alert: KkPaymentsHighErrorRate
+        expr: increase(kk_payments_errors_total[1m]) >= 3
+        for: 10s
+        labels:
+          severity: critical
+          service: kk-payments
+        annotations:
+          summary: "High payment error count detected in kk-payments ({{ $labels.environment }})"
+          description: "kk-payments recorded {{ $value }} errors within the last 1 minute, breaching the reliability threshold."
+
+      - alert: KkPaymentsHighLatency
+        expr: kk_payments_latency_ms > 250
+        for: 30s
+        labels:
+          severity: warning
+          service: kk-payments
+        annotations:
+          summary: "Elevated payment latency on kk-payments ({{ $labels.environment }})"
+          description: "Payment processing latency is {{ $value }}ms, exceeding the 250ms target."
+
+      - alert: KkPaymentsPodRestartDetected
+        expr: increase(kube_pod_container_status_restarts_total{namespace=~"kijani-staging|default", container="kk-payments"}[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: kk-payments
+        annotations:
+          summary: "Pod restart detected for kk-payments"
+          description: "A kk-payments container restarted unexpectedly in namespace {{ $labels.namespace }}."
