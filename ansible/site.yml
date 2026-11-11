@@ -1,0 +1,57 @@
+---
+- name: Configure KijaniKiosk Multi-Environment Kubernetes State and S3 Buckets
+  hosts: local
+  gather_facts: false
+  vars:
+    staging_namespace: "kijani-staging"
+    prod_namespace: "default"
+    s3_root: "/var/lib/kijanikiosk/s3"
+    staging_bucket: "kk-payments-receipts-staging"
+    prod_bucket: "kk-payments-receipts-prod"
+
+  tasks:
+    - name: Ensure local S3 bucket directories exist for staging and production receipt chains
+      ansible.builtin.file:
+        path: "{{ s3_root }}/{{ item }}"
+        state: directory
+        mode: "0777"
+      loop:
+        - "{{ staging_bucket }}"
+        - "{{ prod_bucket }}"
+        - "{{ staging_bucket }}-processed"
+        - "{{ prod_bucket }}-processed"
+      become: true
+
+    - name: Verify kijani-staging namespace exists
+      ansible.builtin.command: kubectl get namespace {{ staging_namespace }}
+      changed_when: false
+
+    - name: Ensure registry pull secret exists in kijani-staging namespace
+      ansible.builtin.shell: |
+        kubectl get secret kijani-registry-credentials -n {{ staging_namespace }} >/dev/null 2>&1 || \
+        kubectl create secret docker-registry kijani-registry-credentials \
+          --namespace={{ staging_namespace }} \
+          --docker-server=localhost:5000 \
+          --docker-username=kijani \
+          --docker-password=local-registry-placeholder \
+          --docker-email=ops@kijanikiosk.co.ke
+      changed_when: false
+
+    - name: Ensure registry pull secret exists in default production namespace
+      ansible.builtin.shell: |
+        kubectl get secret kijani-registry-credentials -n {{ prod_namespace }} >/dev/null 2>&1 || \
+        kubectl create secret docker-registry kijani-registry-credentials \
+          --namespace={{ prod_namespace }} \
+          --docker-server=localhost:5000 \
+          --docker-username=kijani \
+          --docker-password=local-registry-placeholder \
+          --docker-email=ops@kijanikiosk.co.ke
+      changed_when: false
+
+    - name: Apply staging ConfigMap to kijani-staging namespace
+      ansible.builtin.command: kubectl apply -f ../k8s/configmap-staging.yaml -n {{ staging_namespace }}
+      changed_when: true
+
+    - name: Apply production ConfigMap to default namespace
+      ansible.builtin.command: kubectl apply -f ../k8s/configmap-prod.yaml -n {{ prod_namespace }}
+      changed_when: true
