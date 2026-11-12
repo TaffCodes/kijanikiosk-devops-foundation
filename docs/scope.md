@@ -6,7 +6,7 @@ Prior to this initiative, KijaniKiosk deployed the `kk-payments` microservice di
 ## 2. Selected Track
 **Track A: Infrastructure-First** — Extending KijaniKiosk into a multi-environment, Infrastructure-as-Code provisioned, CI/CD-gated, and Prometheus-monitored delivery system integrated with the Week 10 serverless receipt chain.
 
-## 3. In-Scope Components (Five Single-Sentence Deliverables)
+## 3. In-Scope Components
 1. Provision an isolated `kijani-staging` Kubernetes namespace with resource quotas using Terraform and configure its secrets, ConfigMaps, and receipt storage using Ansible.
 2. Deploy `kk-payments` across both `kijani-staging` and `default` (production) namespaces using a single shared Deployment manifest paired with environment-specific ConfigMaps (`DB_HOST` and `RECEIPT_BUCKET` separation).
 3. Automate end-to-end delivery via a Jenkins pipeline triggered on merge to `main` that deploys to staging, executes an automated smoke test, and enforces a reason-recording approval gate before production deployment.
